@@ -1,0 +1,8 @@
+Language: Cpp
+BasedOnStyle: Google
+ColumnLimit: 80
+IndentWidth: 4
+TabWidth: 4
+AlignAfterOpenBracket: BlockIndent
+AlignOperands: true
+PenaltyBreakAssignment: 80
