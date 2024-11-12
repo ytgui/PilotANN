@@ -5,8 +5,8 @@ from pilot_ann import utils
 def evaluate(graph_type: str):
     k = 10
     ef_search = 128
-    n_neighbors = 32
-    batch_size = 256
+    n_neighbors = 64
+    batch_size = 1024
 
     # init
     loader = utils.DataLoader('fuzz-64k')
@@ -26,8 +26,9 @@ def evaluate(graph_type: str):
         utils.search_simple(
             indptr=indptr, indices=indices,
             mapping=mapping, storage=storage,
-            query=query[i], k=k, ef_search=ef_search
-        )
+            query=query[i], initial=None,
+            k=k, ef_search=ef_search
+        )['topk']
         for i in range(batch_size)
     ])
     score = utils.recall(output, target=target)

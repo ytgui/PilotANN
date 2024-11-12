@@ -8,6 +8,7 @@ def search_simple(indptr: list,
                   mapping: list,
                   storage: torch.FloatTensor,
                   query: torch.FloatTensor,
+                  initial: list,
                   k: int, ef_search: int):
     assert query.dim() == 1
     assert storage.dim() == 2
@@ -22,8 +23,14 @@ def search_simple(indptr: list,
     openlist, topk = [], []
 
     # entry
-    while len(visited) < ef_search:
-        u = random.choice(indices)
+    while True:
+        if initial:
+            u = initial.pop(-1)
+        elif len(openlist) >= ef_search:
+            break
+        else:
+            u = random.choice(indices)
+        #
         if u in visited:
             continue
         visited.add(u)
@@ -34,7 +41,31 @@ def search_simple(indptr: list,
         heapq.heappush(topk, [-dist.item(), u])
 
     # traverse
-    while openlist:
+    for step in range(2 * ef_search):
+        neighbors = []
+
+        # expand
+        if not openlist:
+            break
+        dist, u = heapq.heappop(openlist)
+        if dist >= -topk[0][0]:
+            break
+        for v in indices[
+            indptr[u]:indptr[u + 1]
+        ]:
+            if v < 0 or v in visited:
+                continue
+            neighbors.append(v)
+            visited.add(v)
+
+        # heapify
+        for v in neighbors:
+            dist = torch.dist(
+                query, storage[mapping[v]], p=2.0
+            )
+            heapq.heappush(openlist, [dist.item(), v])
+            heapq.heappushpop(topk, [-dist.item(), v])
+
         # shrink
         if len(openlist) > ef_search:
             openlist = [
@@ -42,27 +73,15 @@ def search_simple(indptr: list,
                 for _ in range(ef_search)
             ]
 
-        # expand
-        worst = -topk[0][0]
-        dist, u = heapq.heappop(openlist)
-        if len(topk) >= ef_search and dist >= worst:
-            break
-
-        # visit
-        for v in indices[indptr[u]:indptr[u + 1]]:
-            if v < 0:
-                break
-            if v in visited:
-                continue
-            visited.add(v)
-            dist = torch.dist(
-                query, storage[mapping[v]], p=2.0
-            )
-            heapq.heappush(openlist, [dist.item(), v])
-            heapq.heappushpop(topk, [-dist.item(), v])
-
-    # output
+    # topk
     while len(topk) > k:
         heapq.heappop(topk)
     topk = [node for _, node in topk]
-    return topk
+
+    # output
+    output = {
+        'topk': topk,
+        'n_steps': step,
+        'n_visited': len(visited)
+    }
+    return output
