@@ -1,14 +1,14 @@
 import torch
 import random
-from .basic import IndexNSW
+from pilot_ann import proto
 
 
-class IndexOracle(IndexNSW):
+class IndexOracle(proto.IndexNSW):
     def __init__(self,
                  d_model: int,
                  known_portion: float,
                  method: str = 'nsw32'):
-        IndexNSW.__init__(
+        proto.IndexNSW.__init__(
             self, d_model=d_model, method=method
         )
         # known
@@ -18,19 +18,20 @@ class IndexOracle(IndexNSW):
     def entry(self,
               query: torch.Tensor,
               ef_search: int):
-        assert query.dim() == 1
+        assert query.dim() == 2
 
-        # bruteforce
+        # brute
         dist = torch.cdist(
-            query.unsqueeze(0), self.storage, p=2.0
+            query, self.storage, p=2.0
         )
         orders = torch.topk(
-            dist, k=ef_search, largest=False, sorted=False
+            dist, k=ef_search, dim=-1, largest=False
         )
-        indices = orders.indices.flatten().tolist()
 
-        #
-        nodes = random.choices(
-            indices, k=round(self.known_portion * ef_search)
-        )
+        # entry
+        n = round(self.known_portion * ef_search)
+        nodes = [
+            random.choices(indices, k=n)
+            for indices in orders.indices.tolist()
+        ]
         return nodes

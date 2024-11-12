@@ -27,6 +27,9 @@ def main():
     # index
     for index in [
         proto.IndexNSW(d_model=d_model),
+        proto.IndexSVD(
+            d_model=d_model, d_major=d_model // 2
+        ),
         proto.IndexOracle(
             d_model=d_model, known_portion=1/4
         )

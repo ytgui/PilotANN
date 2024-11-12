@@ -26,8 +26,7 @@ def evaluate(graph_type: str):
         utils.search_simple(
             indptr=indptr, indices=indices,
             mapping=mapping, storage=storage,
-            query=query[i], initial=None,
-            k=k, ef_search=ef_search
+            query=query[i], k=k, ef_search=ef_search
         )['topk']
         for i in range(batch_size)
     ])

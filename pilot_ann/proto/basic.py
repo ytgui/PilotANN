@@ -45,22 +45,27 @@ class IndexNSW(nn.Module):
     def entry(self,
               query: torch.Tensor,
               ef_search: int):
-        assert query.dim() == 1
+        assert query.dim() == 2
+        batch_size = query.size(0)
 
-        # nodes
-        nodes = set()
-        while len(nodes) < ef_search:
-            u = random.choice(self.indices)
-            if u < 0:
-                continue
-            nodes.add(u)
-        return list(nodes)
+        #
+        nodes = torch.randint(
+            high=self.storage.size(0),
+            size=[batch_size, ef_search]
+        )
+        return nodes.tolist()
 
     def search(self,
                query: torch.FloatTensor,
-               k: int, ef_search: int):
+               k: int,
+               ef_search: int):
         assert query.dim() == 2
         batch_size = query.size(0)
+
+        # entry
+        entry = self.entry(
+            query, ef_search=ef_search
+        )
 
         # traverse
         output = [
@@ -69,11 +74,7 @@ class IndexNSW(nn.Module):
                 indices=self.indices,
                 mapping=self.mapping,
                 storage=self.storage,
-                query=query[i],
-                initial=self.entry(
-                    query=query[i],
-                    ef_search=ef_search
-                ),
+                query=query[i], ep=entry[i],
                 k=k, ef_search=ef_search
             )
             for i in range(batch_size)
@@ -94,6 +95,4 @@ class IndexNSW(nn.Module):
             'n_steps': n_steps / len(output),
             'n_visited': n_visited / len(output)
         }
-
-        #
         return output

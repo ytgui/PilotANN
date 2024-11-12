@@ -8,8 +8,8 @@ def search_simple(indptr: list,
                   mapping: list,
                   storage: torch.FloatTensor,
                   query: torch.FloatTensor,
-                  initial: list,
-                  k: int, ef_search: int):
+                  k: int, ef_search: int,
+                  ep: list = None):
     assert query.dim() == 1
     assert storage.dim() == 2
     assert query.size(-1) == storage.size(-1)
@@ -24,8 +24,8 @@ def search_simple(indptr: list,
 
     # entry
     while True:
-        if initial:
-            u = initial.pop(-1)
+        if ep:
+            u = ep.pop(-1)
         elif len(openlist) >= ef_search:
             break
         else:
@@ -42,11 +42,19 @@ def search_simple(indptr: list,
 
     # traverse
     for step in range(2 * ef_search):
-        neighbors = []
-
-        # expand
+        # shrink
         if not openlist:
             break
+        if len(openlist) > ef_search:
+            openlist = [
+                heapq.heappop(openlist)
+                for _ in range(ef_search)
+            ]
+        while len(topk) > ef_search:
+            heapq.heappop(topk)
+
+        # expand
+        neighbors = []
         dist, u = heapq.heappop(openlist)
         if dist >= -topk[0][0]:
             break
@@ -64,14 +72,7 @@ def search_simple(indptr: list,
                 query, storage[mapping[v]], p=2.0
             )
             heapq.heappush(openlist, [dist.item(), v])
-            heapq.heappushpop(topk, [-dist.item(), v])
-
-        # shrink
-        if len(openlist) > ef_search:
-            openlist = [
-                heapq.heappop(openlist)
-                for _ in range(ef_search)
-            ]
+            heapq.heappush(topk, [-dist.item(), v])
 
     # topk
     while len(topk) > k:
