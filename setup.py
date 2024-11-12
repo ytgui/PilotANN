@@ -29,7 +29,8 @@ setup(
             'pilot_ann.extension',
             sources=[
                 'extension/entry.cpp',
-                'extension/ops_cpu.cpp'
+                'extension/ops_cpu.cpp',
+                'extension/sampling_cpu.cpp'
             ],
             extra_compile_args={
                 'cxx': [

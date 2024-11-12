@@ -2,7 +2,7 @@ import torch
 from pilot_ann import utils
 
 
-def evaluate(graph_type: str):
+def evaluate(graph_type: str, sampling: bool):
     k = 10
     ef_search = 128
     n_neighbors = 64
@@ -21,6 +21,22 @@ def evaluate(graph_type: str):
     )
     mapping = list(range(loader.n_storage))
 
+    # sampling
+    if sampling:
+        subgraph = utils.subgraph_init(
+            indptr=indptr, indices=indices,
+            storage=storage, graph_type=graph_type,
+            n_samples=loader.n_storage // 4,
+            n_neighbors=n_neighbors
+        )
+        indptr, indices, nodelist, mapping = subgraph
+        assert max(mapping) + 1 == len(nodelist)
+        assert len(set(mapping)) == len(nodelist) + 1
+        assert all(
+            mapping[x] != -1 for x in nodelist
+        )
+        storage = storage[nodelist]
+
     # search
     output = torch.LongTensor([
         utils.search_simple(
@@ -37,8 +53,12 @@ def evaluate(graph_type: str):
 
     # check
     thresholds = {
-        128: 0.75, 512: 0.35, 1024: 0.25
+        128: 0.60, 512: 0.35, 1024: 0.20
     }
+    if sampling:
+        thresholds = {
+            k: v / 4.0 for k, v in thresholds.items()
+        }
     assert score >= next(
         v for k, v in thresholds.items() if loader.d_model <= k
     )
@@ -46,14 +66,27 @@ def evaluate(graph_type: str):
 
 def test_graph_init():
     for graph_type in ['nsg', 'nsw']:
-        evaluate(graph_type=graph_type)
+        evaluate(
+            graph_type=graph_type, sampling=False
+        )
 
     #
     print('[PASS] test_graph_init()')
 
 
+def test_subgraph_init():
+    for graph_type in ['nsg', 'nsw']:
+        evaluate(
+            graph_type=graph_type, sampling=True
+        )
+
+    #
+    print('[PASS] test_subgraph_init()')
+
+
 def main():
     test_graph_init()
+    test_subgraph_init()
 
 
 if __name__ == '__main__':

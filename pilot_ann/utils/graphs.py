@@ -1,5 +1,6 @@
 import faiss
 import torch
+from pilot_ann import kernels
 
 
 def graph_nsg_init(x: torch.Tensor,
@@ -90,3 +91,42 @@ def graph_init(x: torch.Tensor,
         )
     else:
         raise RuntimeError
+
+
+def subgraph_init(indptr: list,
+                  indices: list,
+                  storage: torch.Tensor,
+                  graph_type: str,
+                  n_samples: int,
+                  n_neighbors: int,
+                  n_hops: int = 1):
+    # sampling
+    sampled = kernels.graph_sampling(
+        indptr=indptr, indices=indices,
+        n_samples=n_samples, n_hops=n_hops
+    )
+    nodelist, mapping = sampled
+
+    # subgraph
+    subgraph = graph_init(
+        x=storage[nodelist],
+        graph_type=graph_type,
+        n_neighbors=n_neighbors
+    )
+    sg_indptr, sg_indices = subgraph
+
+    # remapping
+    new_indptr, new_indices = [0], []
+    for u in range(len(indptr) - 1):
+        if mapping[u] != -1:
+            u = mapping[u]
+            for v in sg_indices[
+                sg_indptr[u]:sg_indptr[u + 1]
+            ]:
+                new_indices.append(nodelist[v])
+        new_indptr.append(len(new_indices))
+    assert new_indptr[-1] == len(new_indices)
+    assert len(new_indptr) == len(indptr)
+
+    #
+    return new_indptr, new_indices, nodelist, mapping

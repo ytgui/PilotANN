@@ -16,6 +16,12 @@ torch::Tensor square_dist_cpu(
     const torch::Tensor &nodelist
 );
 
+/***** sampling operators *****/
+std::vector<std::vector<index_t>> graph_sampling_cpu(
+    const std::vector<index_t> &indptr, const std::vector<index_t> &indices,
+    size_t n_samples, int n_hops
+);
+
 /***** pybind11 module *****/
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     // basic
@@ -24,4 +30,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("heapq_replace_cpu", &heapq_replace_cpu, "heapq_replace_cpu");
     m.def("bitmask_put_cpu", &bitmask_put_cpu, "bitmask_put_cpu");
     m.def("square_dist_cpu", &square_dist_cpu, "square_dist_cpu");
+
+    // sampling
+    m.def("graph_sampling_cpu", &graph_sampling_cpu, "graph_sampling_cpu");
 }

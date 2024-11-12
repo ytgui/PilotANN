@@ -33,3 +33,12 @@ def square_dist(query: torch.Tensor,
     return extension.square_dist_cpu(
         query, storage, nodelist
     )
+
+
+def graph_sampling(indptr: torch.Tensor,
+                   indices: torch.Tensor,
+                   n_samples: int,
+                   n_hops: int):
+    return extension.graph_sampling_cpu(
+        indptr, indices, n_samples, n_hops
+    )
