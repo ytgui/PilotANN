@@ -44,6 +44,12 @@ void traverse_refine(
     const torch::Tensor &query, int ef_search, int d_principle
 );
 
+/***** routing operator *****/
+std::vector<torch::Tensor> routing_cuda(
+    const torch::Tensor &query, const torch::Tensor &route_vectors,
+    const torch::Tensor &entry_nodes, const torch::Tensor &entry_vectors
+);
+
 /***** pybind11 module *****/
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     // basic
@@ -60,4 +66,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("traverse_cpu", &traverse_cpu, "traverse_cpu");
     m.def("traverse_cuda", &traverse_cuda, "traverse_cuda");
     m.def("traverse_refine", &traverse_refine, "traverse_refine");
+
+    // routing
+    m.def("routing_cuda", &routing_cuda, "routing_cuda");
 }

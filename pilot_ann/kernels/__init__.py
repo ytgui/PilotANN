@@ -92,3 +92,12 @@ def traverse_refine(output_I: torch.Tensor,
         initial_I, initial_D, subgraph, fullgraph,
         storage, query, ef_search, d_principle
     )
+
+
+def routing_cuda(query: torch.Tensor,
+                 route_vectors: torch.Tensor,
+                 entry_nodes: torch.Tensor,
+                 entry_vectors: torch.Tensor):
+    return extension.routing_cuda(
+        query, route_vectors, entry_nodes, entry_vectors
+    )
