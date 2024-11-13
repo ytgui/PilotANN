@@ -30,7 +30,8 @@ setup(
             sources=[
                 'extension/entry.cpp',
                 'extension/ops_cpu.cpp',
-                'extension/sampling_cpu.cpp'
+                'extension/sampling_cpu.cpp',
+                'extension/traverse_cpu.cpp'
             ],
             extra_compile_args={
                 'cxx': [

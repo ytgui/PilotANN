@@ -2,7 +2,7 @@
 #include "inc/common.h"
 // clang-format on
 
-std::vector<std::vector<index_t>> graph_sampling_cpu(
+std::vector<std::vector<index_t>> sampling_cpu(
     const std::vector<index_t> &indptr, const std::vector<index_t> &indices,
     size_t n_samples, int n_hops
 ) {

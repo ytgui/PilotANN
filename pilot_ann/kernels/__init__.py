@@ -39,6 +39,22 @@ def graph_sampling(indptr: torch.Tensor,
                    indices: torch.Tensor,
                    n_samples: int,
                    n_hops: int):
-    return extension.graph_sampling_cpu(
+    return extension.sampling_cpu(
         indptr, indices, n_samples, n_hops
+    )
+
+
+def traverse_cpu(output_I: torch.Tensor,
+                 output_D: torch.Tensor,
+                 indptr: torch.Tensor,
+                 indices: torch.Tensor,
+                 storage: torch.Tensor,
+                 query: torch.Tensor,
+                 initial_I: torch.Tensor,
+                 initial_D: torch.Tensor,
+                 n_neighbors: int,
+                 ef_search: int):
+    extension.traverse_cpu(
+        output_I, output_D, indptr, indices, storage, query,
+        initial_I, initial_D, n_neighbors, ef_search
     )

@@ -17,9 +17,18 @@ torch::Tensor square_dist_cpu(
 );
 
 /***** sampling operators *****/
-std::vector<std::vector<index_t>> graph_sampling_cpu(
+std::vector<std::vector<index_t>> sampling_cpu(
     const std::vector<index_t> &indptr, const std::vector<index_t> &indices,
     size_t n_samples, int n_hops
+);
+
+/***** traversal operators *****/
+void traverse_cpu(
+    torch::Tensor &output_I, torch::Tensor &output_D,
+    const torch::Tensor &indptr, const torch::Tensor &indices,
+    const torch::Tensor &storage, const torch::Tensor &query,
+    const torch::Tensor &initial_I, const torch::Tensor &initial_D,
+    int n_neighbors, int ef_search
 );
 
 /***** pybind11 module *****/
@@ -32,5 +41,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("square_dist_cpu", &square_dist_cpu, "square_dist_cpu");
 
     // sampling
-    m.def("graph_sampling_cpu", &graph_sampling_cpu, "graph_sampling_cpu");
+    m.def("sampling_cpu", &sampling_cpu, "sampling_cpu");
+
+    // traversal
+    m.def("traverse_cpu", &traverse_cpu, "traverse_cpu");
 }
