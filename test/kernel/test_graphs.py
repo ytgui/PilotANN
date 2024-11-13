@@ -4,12 +4,12 @@ from pilot_ann import utils
 
 def evaluate(graph_type: str, sampling: bool):
     k = 10
-    ef_search = 128
+    ef_search = 32
     n_neighbors = 64
-    batch_size = 1024
+    batch_size = 256
 
     # init
-    loader = utils.DataLoader('fuzz-64k')
+    loader = utils.DataLoader('fuzz-16k')
     storage = loader.load_storage()
     query, target = loader.load_query(
         n_queries=batch_size, k=k
