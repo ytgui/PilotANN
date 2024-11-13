@@ -29,13 +29,15 @@ inline void prefetch_nta(const void* address) {
 }
 
 inline float compute_dist_avx2(
-    const float* query, const float* storage, index_t v, index_t d_model
+    const float* query, const float* storage, index_t v, index_t d_model,
+    index_t offset = 0
 ) {
+    TORCH_CHECK(offset % SIMD_WIDTH == 0);
     TORCH_CHECK(d_model % SIMD_WIDTH == 0);
 
     // window
     auto buffer = _mm256_setzero_ps();
-    for (auto offset = 0; offset < d_model; offset += SIMD_WIDTH) {
+    while (offset < d_model) {
         // query
         auto query_reg = _mm256_load_ps(query + offset);
 
@@ -44,6 +46,7 @@ inline float compute_dist_avx2(
             query_reg, _mm256_load_ps(storage + v * d_model + offset)
         );
         buffer = _mm256_fmadd_ps(tmp_reg, tmp_reg, buffer);
+        offset += SIMD_WIDTH;
     }
 
     // reduce

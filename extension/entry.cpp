@@ -24,11 +24,17 @@ std::vector<std::vector<index_t>> sampling_cpu(
 
 /***** traversal operators *****/
 void traverse_cpu(
-    torch::Tensor &output_I, torch::Tensor &output_D,
-    const torch::Tensor &indptr, const torch::Tensor &indices,
-    const torch::Tensor &storage, const torch::Tensor &query,
-    const torch::Tensor &initial_I, const torch::Tensor &initial_D,
-    int n_neighbors, int ef_search
+    torch::Tensor &output_I, torch::Tensor &output_D, torch::Tensor &initial_I,
+    torch::Tensor &initial_D, const torch::Tensor &indptr,
+    const torch::Tensor &indices, const torch::Tensor &storage,
+    const torch::Tensor &query, int ef_search
+);
+void traverse_refine(
+    torch::Tensor &output_I, torch::Tensor &output_D, torch::Tensor &buffer_I,
+    torch::Tensor &buffer_D, torch::Tensor &initial_I, torch::Tensor &initial_D,
+    const std::vector<torch::Tensor> &subgraph,
+    const std::vector<torch::Tensor> &fullgraph, const torch::Tensor &storage,
+    const torch::Tensor &query, int ef_search, int d_principle
 );
 
 /***** pybind11 module *****/
@@ -45,4 +51,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
     // traversal
     m.def("traverse_cpu", &traverse_cpu, "traverse_cpu");
+    m.def("traverse_refine", &traverse_refine, "traverse_refine");
 }

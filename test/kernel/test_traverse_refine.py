@@ -2,9 +2,9 @@ import torch
 from pilot_ann import utils, kernels
 
 
-def evaluate_cpu(graph_type: str, sampling: bool):
+def evaluate_refine(graph_type: str):
     k = 10
-    ef_search = 128
+    ef_search = 32
     n_neighbors = 64
     batch_size = 1024
 
@@ -14,49 +14,56 @@ def evaluate_cpu(graph_type: str, sampling: bool):
     query, target = loader.load_query(
         n_queries=batch_size, k=k
     )
+    d_principle = loader.d_model // 2
 
     # graph
     indptr, indices = utils.graph_init(
-        storage, graph_type, n_neighbors=n_neighbors
+        storage, graph_type=graph_type,
+        n_neighbors=n_neighbors
     )
-    mapping = list(range(loader.n_storage))
-
-    # sampling
-    if sampling:
-        subgraph = utils.subgraph_init(
-            indptr=indptr, indices=indices,
-            storage=storage, graph_type=graph_type,
-            n_samples=loader.n_storage // 4,
-            n_neighbors=n_neighbors
-        )
-        indptr, indices, nodelist, mapping = subgraph
-        assert max(mapping) + 1 == len(nodelist)
-        assert len(set(mapping)) == len(nodelist) + 1
-        assert all(
-            mapping[x] != -1 for x in nodelist
-        )
+    subgraph = utils.subgraph_init(
+        indptr=indptr, indices=indices,
+        storage=storage, graph_type=graph_type,
+        n_samples=loader.n_storage // 4,
+        n_neighbors=n_neighbors
+    )
 
     # traverse
-    indptr = torch.LongTensor(indptr)
-    indices = torch.LongTensor(indices)
+    graph = [
+        torch.LongTensor(indptr),
+        torch.LongTensor(indices)
+    ]
+    subgraph = [
+        torch.LongTensor(subgraph[0]),
+        torch.LongTensor(subgraph[1])
+    ]
     output_I = torch.empty(
         size=[batch_size, k], dtype=torch.long
     )
     output_D = torch.empty(
         size=[batch_size, k], dtype=torch.float
     )
+    buffer_I = torch.empty(
+        size=[batch_size, ef_search], dtype=torch.long
+    )
+    buffer_D = torch.empty(
+        size=[batch_size, ef_search], dtype=torch.float
+    )
     initial_I = torch.randint(
         high=loader.n_storage, size=[batch_size, ef_search]
     )
-    distances = torch.cdist(query, storage, p=2.0)
+    distances = torch.cdist(
+        query[:, :d_principle], storage[:, :d_principle], p=2.0
+    )
     initial_D = torch.gather(
         distances.square(), dim=-1, index=initial_I
     )
-    kernels.traverse_cpu(
+    kernels.traverse_refine(
         output_I=output_I, output_D=output_D,
+        buffer_I=buffer_I, buffer_D=buffer_D,
         initial_I=initial_I, initial_D=initial_D,
-        indptr=indptr, indices=indices, storage=storage,
-        query=query, ef_search=ef_search
+        subgraph=subgraph, fullgraph=graph, storage=storage,
+        query=query, d_principle=d_principle, ef_search=ef_search
     )
     score = utils.recall(output_I, target=target)
     print('{}: d_model={}, recall@{}: {:.3f}'.format(
@@ -67,10 +74,6 @@ def evaluate_cpu(graph_type: str, sampling: bool):
     thresholds = {
         128: 0.60, 512: 0.35, 1024: 0.20
     }
-    if sampling:
-        thresholds = {
-            k: v / 4.0 for k, v in thresholds.items()
-        }
     assert score >= next(
         v for k, v in thresholds.items() if loader.d_model <= k
     )
@@ -83,30 +86,25 @@ def evaluate_cpu(graph_type: str, sampling: bool):
         output_D, target.squeeze(1).square(), atol=1e-3
     )
 
+    # check residual
+    target = torch.cdist(
+        query.unsqueeze(1), storage[buffer_I], p=2.0
+    )
+    assert torch.allclose(
+        buffer_D, target.squeeze(1).square(), atol=1e-3
+    )
 
-def test_traverse_cpu_1():
+
+def test_traverse_refine():
     for graph_type in ['nsg', 'nsw']:
-        evaluate_cpu(
-            graph_type=graph_type, sampling=False
-        )
+        evaluate_refine(graph_type=graph_type)
 
     #
-    print('[PASS] test_traverse_cpu_1()')
-
-
-def test_traverse_cpu_2():
-    for graph_type in ['nsg', 'nsw']:
-        evaluate_cpu(
-            graph_type=graph_type, sampling=True
-        )
-
-    #
-    print('[PASS] test_traverse_cpu_2()')
+    print('[PASS] test_traverse_refine()')
 
 
 def main():
-    test_traverse_cpu_1()
-    test_traverse_cpu_2()
+    test_traverse_refine()
 
 
 if __name__ == '__main__':

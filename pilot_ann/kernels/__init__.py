@@ -46,15 +46,33 @@ def graph_sampling(indptr: torch.Tensor,
 
 def traverse_cpu(output_I: torch.Tensor,
                  output_D: torch.Tensor,
+                 initial_I: torch.Tensor,
+                 initial_D: torch.Tensor,
                  indptr: torch.Tensor,
                  indices: torch.Tensor,
                  storage: torch.Tensor,
                  query: torch.Tensor,
-                 initial_I: torch.Tensor,
-                 initial_D: torch.Tensor,
-                 n_neighbors: int,
                  ef_search: int):
     extension.traverse_cpu(
-        output_I, output_D, indptr, indices, storage, query,
-        initial_I, initial_D, n_neighbors, ef_search
+        output_I, output_D, initial_I, initial_D,
+        indptr, indices, storage, query, ef_search
+    )
+
+
+def traverse_refine(output_I: torch.Tensor,
+                    output_D: torch.Tensor,
+                    buffer_I: torch.Tensor,
+                    buffer_D: torch.Tensor,
+                    initial_I: torch.Tensor,
+                    initial_D: torch.Tensor,
+                    subgraph: list[torch.Tensor],
+                    fullgraph: list[torch.Tensor],
+                    storage: torch.Tensor,
+                    query: torch.Tensor,
+                    ef_search: int,
+                    d_principle: int):
+    extension.traverse_refine(
+        output_I, output_D, buffer_I, buffer_D,
+        initial_I, initial_D, subgraph, fullgraph,
+        storage, query, ef_search, d_principle
     )
