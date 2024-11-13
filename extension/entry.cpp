@@ -29,6 +29,13 @@ void traverse_cpu(
     const torch::Tensor &indices, const torch::Tensor &storage,
     const torch::Tensor &query, int ef_search
 );
+void traverse_cuda(
+    torch::Tensor &output_I, torch::Tensor &output_D,
+    const torch::Tensor &indptr, const torch::Tensor &indices,
+    const torch::Tensor &mapping, const torch::Tensor &storage,
+    const torch::Tensor &query, const torch::Tensor &initial_I,
+    const torch::Tensor &initial_D, int n_neighbors
+);
 void traverse_refine(
     torch::Tensor &output_I, torch::Tensor &output_D, torch::Tensor &buffer_I,
     torch::Tensor &buffer_D, torch::Tensor &initial_I, torch::Tensor &initial_D,
@@ -51,5 +58,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
     // traversal
     m.def("traverse_cpu", &traverse_cpu, "traverse_cpu");
+    m.def("traverse_cuda", &traverse_cuda, "traverse_cuda");
     m.def("traverse_refine", &traverse_refine, "traverse_refine");
 }

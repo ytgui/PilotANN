@@ -31,7 +31,8 @@ setup(
                 'extension/entry.cpp',
                 'extension/ops_cpu.cpp',
                 'extension/sampling_cpu.cpp',
-                'extension/traverse_cpu.cpp'
+                'extension/traverse_cpu.cpp',
+                'extension/traverse_cuda.cu'
             ],
             extra_compile_args={
                 'cxx': [

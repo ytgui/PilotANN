@@ -59,6 +59,22 @@ def traverse_cpu(output_I: torch.Tensor,
     )
 
 
+def traverse_cuda(output_I: torch.Tensor,
+                  output_D: torch.Tensor,
+                  indptr: torch.Tensor,
+                  indices: torch.Tensor,
+                  mapping: torch.Tensor,
+                  storage: torch.Tensor,
+                  query: torch.Tensor,
+                  initial_I: torch.Tensor,
+                  initial_D: torch.Tensor,
+                  n_neighbors: int):
+    extension.traverse_cuda(
+        output_I, output_D, indptr, indices, mapping,
+        storage, query, initial_I, initial_D, n_neighbors
+    )
+
+
 def traverse_refine(output_I: torch.Tensor,
                     output_D: torch.Tensor,
                     buffer_I: torch.Tensor,
