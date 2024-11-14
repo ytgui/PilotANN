@@ -27,10 +27,12 @@ void traverse_cpu_kernel(
                 continue;
             }
             heap_pushpop<float, index_t>(
-                buffer_D.data(), buffer_I.data(), HEAP_SIZE, -Ds[i], Vs[i]
+                buffer_D.data(), buffer_I.data(),
+                HEAP_SIZE, -Ds[i], Vs[i]
             );
             heap_replace<float, index_t>(
-                openlist_D.data(), openlist_I.data(), 2 * HEAP_SIZE, Ds[i], Vs[i]
+                openlist_D.data(), openlist_I.data(),
+                2 * HEAP_SIZE, Ds[i], Vs[i]
             );
         }
     };
@@ -40,7 +42,7 @@ void traverse_cpu_kernel(
         for (auto i = 0; i < n_initials; i += 1) {
             auto u = initial_I[i];
             if (u < 0) {
-                break;
+                continue;
             }
             prefetch_l2(
                 storage + u * d_model + d_principle
@@ -49,7 +51,7 @@ void traverse_cpu_kernel(
         for (auto i = 0; i < n_initials; i += 1) {
             auto u = initial_I[i];
             if (u < 0) {
-                break;
+                continue;
             }
             auto residual = compute_dist_avx2(
                 query, storage, u, d_model, d_principle
@@ -65,13 +67,13 @@ void traverse_cpu_kernel(
     openlist_D.fill(INFINITY);
     for (auto i = 0; i < n_initials; i += 1) {
         auto u = initial_I[i];
-        auto d = initial_D[i];
         if (u < 0) {
-            break;
+            continue;
         }
         bitmask[u] = mask_value;
         heap_replace<float, index_t>(
-            openlist_D.data(), openlist_I.data(), 2 * HEAP_SIZE, d, u
+            openlist_D.data(), openlist_I.data(),
+            2 * HEAP_SIZE, initial_D[i], u
         );
     }
 
@@ -207,7 +209,7 @@ void traverse_cpu(
         TORCH_CHECK(bitmask->tensor().size(-1) == n_storage);
 
         // dispatch
-#define DISPATCH_KERNEL(HEAP_SIZE, I)                                         \
+#define DISPATCH_KERNEL_1(HEAP_SIZE, I)                                       \
     do {                                                                      \
         traverse_cpu_kernel<HEAP_SIZE>(                                       \
             output_I.data_ptr<index_t>() + I * k,                             \
@@ -222,17 +224,17 @@ void traverse_cpu(
 
         // launch
         if (ef_search <= 16) {
-            DISPATCH_KERNEL(16, i);
+            DISPATCH_KERNEL_1(16, i);
         } else if (ef_search <= 32) {
-            DISPATCH_KERNEL(32, i);
+            DISPATCH_KERNEL_1(32, i);
         } else if (ef_search <= 64) {
-            DISPATCH_KERNEL(64, i);
+            DISPATCH_KERNEL_1(64, i);
         } else if (ef_search <= 128) {
-            DISPATCH_KERNEL(128, i);
+            DISPATCH_KERNEL_1(128, i);
         } else if (ef_search <= 192) {
-            DISPATCH_KERNEL(192, i);
+            DISPATCH_KERNEL_1(192, i);
         } else if (ef_search <= 256) {
-            DISPATCH_KERNEL(256, i);
+            DISPATCH_KERNEL_1(256, i);
         } else {
             TORCH_CHECK("ef_search not supported" && false);
         }
@@ -296,7 +298,7 @@ void traverse_refine(
         TORCH_CHECK(bitmask->tensor().size(-1) == n_storage);
 
         // dispatch
-#define DISPATCH_KERNEL(HEAP_SIZE, I)                                         \
+#define DISPATCH_KERNEL_2(HEAP_SIZE, I)                                       \
     do {                                                                      \
         traverse_cpu_kernel<HEAP_SIZE>(                                       \
             buffer_I.data_ptr<index_t>() + I * n_buffers,                     \
@@ -322,17 +324,17 @@ void traverse_refine(
 
         // launch
         if (ef_search <= 16) {
-            DISPATCH_KERNEL(16, i);
+            DISPATCH_KERNEL_2(16, i);
         } else if (ef_search <= 32) {
-            DISPATCH_KERNEL(32, i);
+            DISPATCH_KERNEL_2(32, i);
         } else if (ef_search <= 64) {
-            DISPATCH_KERNEL(64, i);
+            DISPATCH_KERNEL_2(64, i);
         } else if (ef_search <= 128) {
-            DISPATCH_KERNEL(128, i);
+            DISPATCH_KERNEL_2(128, i);
         } else if (ef_search <= 192) {
-            DISPATCH_KERNEL(192, i);
+            DISPATCH_KERNEL_2(192, i);
         } else if (ef_search <= 256) {
-            DISPATCH_KERNEL(256, i);
+            DISPATCH_KERNEL_2(256, i);
         } else {
             TORCH_CHECK("ef_search not supported" && false);
         }

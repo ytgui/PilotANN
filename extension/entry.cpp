@@ -44,6 +44,17 @@ void traverse_refine(
     const torch::Tensor &query, int ef_search, int d_principle
 );
 
+/***** pipeline operator *****/
+std::vector<torch::Tensor> pipeline(
+    const std::vector<torch::Tensor> &graph,
+    const std::vector<torch::Tensor> &subgraph,
+    const std::vector<torch::Tensor> &subgraph_cuda,
+    const torch::Tensor &storage, const torch::Tensor &storage_cuda,
+    const torch::Tensor &query, const torch::Tensor &query_cuda,
+    const torch::Tensor &initial_I, const torch::Tensor &initial_D,
+    int n_neighbors, int ef_search, int d_principle, int k, int chunk_size
+);
+
 /***** routing operator *****/
 std::vector<torch::Tensor> routing_cuda(
     const torch::Tensor &query, const torch::Tensor &route_vectors,
@@ -69,4 +80,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
     // routing
     m.def("routing_cuda", &routing_cuda, "routing_cuda");
+
+    // pipeline
+    m.def("pipeline", &pipeline, "pipeline");
 }

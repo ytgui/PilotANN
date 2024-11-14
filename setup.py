@@ -33,6 +33,7 @@ setup(
                 'extension/sampling_cpu.cpp',
                 'extension/traverse_cpu.cpp',
                 'extension/traverse_cuda.cu',
+                'extension/pipeline_cpu.cpp',
                 'extension/routing_cuda.cu'
             ],
             extra_compile_args={

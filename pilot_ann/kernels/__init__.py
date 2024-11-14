@@ -101,3 +101,24 @@ def routing_cuda(query: torch.Tensor,
     return extension.routing_cuda(
         query, route_vectors, entry_nodes, entry_vectors
     )
+
+
+def pipeline(graph: list[torch.Tensor],
+             subgraph: list[torch.Tensor],
+             subgraph_cuda: list[torch.Tensor],
+             storage: torch.Tensor,
+             storage_cuda: torch.Tensor,
+             query: torch.Tensor,
+             query_cuda: torch.Tensor,
+             initial_I: torch.Tensor,
+             initial_D: torch.Tensor,
+             n_neighbors: int,
+             k: int,
+             ef_search: int,
+             d_principle: int,
+             chunk_size: int):
+    return extension.pipeline(
+        graph, subgraph, subgraph_cuda, storage, storage_cuda,
+        query, query_cuda, initial_I, initial_D, n_neighbors,
+        ef_search, d_principle, k, chunk_size
+    )

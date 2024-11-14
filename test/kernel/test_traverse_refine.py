@@ -14,15 +14,15 @@ def evaluate_refine(graph_type: str):
     query, target = loader.load_query(
         n_queries=batch_size, k=k
     )
-    d_principle = loader.d_model // 2
+    d_principle = 8 * (loader.d_model // 16)
 
     # graph
-    indptr, indices = utils.graph_init(
+    graph = utils.graph_init(
         storage, graph_type=graph_type,
         n_neighbors=n_neighbors
     )
     subgraph = utils.subgraph_init(
-        indptr=indptr, indices=indices,
+        indptr=graph[0], indices=graph[1],
         storage=storage, graph_type=graph_type,
         n_samples=loader.n_storage // 4,
         n_neighbors=n_neighbors
@@ -30,8 +30,8 @@ def evaluate_refine(graph_type: str):
 
     # traverse
     graph = [
-        torch.LongTensor(indptr),
-        torch.LongTensor(indices)
+        torch.LongTensor(graph[0]),
+        torch.LongTensor(graph[1])
     ]
     subgraph = [
         torch.LongTensor(subgraph[0]),
