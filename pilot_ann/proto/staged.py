@@ -4,6 +4,8 @@ from pilot_ann import proto
 
 
 class IndexStaged(nn.Module):
+    REFINE_STEPS = 2
+
     def __init__(self,
                  d_model: int,
                  d_major: int,
@@ -69,7 +71,8 @@ class IndexStaged(nn.Module):
             return output_1['topk'].tolist()
         self.stage_2.entry = entry
         output_2 = self.stage_2.search(
-            query=query, k=k, ef_search=ef_search
+            query=query, k=k, ef_search=ef_search,
+            max_iterations=self.REFINE_STEPS
         )
 
         # traverse 3

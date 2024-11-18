@@ -6,6 +6,7 @@
 // clang-format on
 
 #define TILE_SIZE 4
+#define REFINE_STEP 2
 
 // clang-format off
 template <int HEAP_SIZE>
@@ -14,7 +15,7 @@ void traverse_cpu_kernel(
     index_t *initial_I, float *initial_D, const index_t *indptr,
     const index_t *indices, const float *storage, const float *query,
     int d_model, int d_principle, int n_initials, int ef_search, int k,
-    int32_t mask_value
+    int32_t mask_value, int max_iterations = 1024
 ) {
     // heap
     auto buffer_D = std::array<float, HEAP_SIZE>();
@@ -78,7 +79,8 @@ void traverse_cpu_kernel(
     }
 
     // iterate
-    for (auto step = 0; step < 2 * ef_search; step += 1) {
+    max_iterations = std::min(max_iterations, 2 * ef_search);
+    for (auto step = 0; step < max_iterations; step += 1) {
         // seed
         auto u = heap_pop<float, index_t>(
             openlist_D.data(), openlist_I.data(), 2 * HEAP_SIZE
@@ -308,7 +310,7 @@ void traverse_refine(
             subgraph[0].data_ptr<index_t>(), subgraph[1].data_ptr<index_t>(), \
             storage.data_ptr<float>(), query.data_ptr<float>() + I * d_model, \
             d_model, d_principle, n_initials, ef_search, n_buffers,           \
-            bitmask->marker()                                                 \
+            bitmask->marker(), REFINE_STEP                                    \
         );                                                                    \
         traverse_cpu_kernel<HEAP_SIZE>(                                       \
             output_I.data_ptr<index_t>() + I * k,                             \

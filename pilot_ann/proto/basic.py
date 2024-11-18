@@ -65,7 +65,8 @@ class IndexNSW(nn.Module):
     def search(self,
                query: torch.FloatTensor,
                k: int,
-               ef_search: int):
+               ef_search: int,
+               max_iterations: int = 1024):
         assert query.dim() == 2
         batch_size = query.size(0)
 
@@ -85,6 +86,7 @@ class IndexNSW(nn.Module):
                 query=query[i], k=k,
                 ef_search=ef_search,
                 closedlist=closedlist[i],
+                max_iterations=max_iterations,
                 ep=entry[i]
             )
             for i in range(batch_size)

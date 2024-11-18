@@ -10,6 +10,7 @@ def search_simple(indptr: list,
                   query: torch.FloatTensor,
                   k: int, ef_search: int,
                   closedlist: list = None,
+                  max_iterations: int = 1024,
                   ep: list = None):
     assert query.dim() == 1
     assert storage.dim() == 2
@@ -48,7 +49,10 @@ def search_simple(indptr: list,
         visited.add(u)
 
     # traverse
-    for step in range(2 * ef_search):
+    max_iterations = min(
+        max_iterations, 2 * ef_search
+    )
+    for step in range(max_iterations):
         # shrink
         if not openlist:
             break
