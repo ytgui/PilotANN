@@ -9,6 +9,7 @@ def search_simple(indptr: list,
                   storage: torch.FloatTensor,
                   query: torch.FloatTensor,
                   k: int, ef_search: int,
+                  closedlist: list = None,
                   ep: list = None):
     assert query.dim() == 1
     assert storage.dim() == 2
@@ -20,6 +21,7 @@ def search_simple(indptr: list,
 
     # init
     visited = set()
+    computed = set()
     openlist, topk = [], []
 
     # entry
@@ -39,6 +41,11 @@ def search_simple(indptr: list,
         )
         heapq.heappush(openlist, [dist.item(), u])
         heapq.heappush(topk, [-dist.item(), u])
+
+    # closedlist
+    while closedlist:
+        u = closedlist.pop(-1)
+        visited.add(u)
 
     # traverse
     for step in range(2 * ef_search):
@@ -64,6 +71,7 @@ def search_simple(indptr: list,
             if v < 0 or v in visited:
                 continue
             neighbors.append(v)
+            computed.add(v)
             visited.add(v)
 
         # heapify
@@ -83,6 +91,8 @@ def search_simple(indptr: list,
     output = {
         'topk': topk,
         'n_steps': step,
-        'n_visited': len(visited)
+        'visited': visited,
+        'n_visited': len(visited),
+        'n_computed': len(computed)
     }
     return output

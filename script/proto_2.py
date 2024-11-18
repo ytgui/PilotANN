@@ -25,24 +25,10 @@ def main():
 
     # index
     for index in [
-        proto.IndexNSW(d_model=loader.d_model),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/2
-        ),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/4
-        ),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/8
-        ),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/16
-        ),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/24
-        ),
-        proto.IndexOracle(
-            d_model=loader.d_model, known_portion=1/32
+        proto.IndexStaged(
+            d_model=loader.d_model,
+            d_major=loader.d_model // 2,
+            sample_ratio=1/4
         )
     ]:
         # train

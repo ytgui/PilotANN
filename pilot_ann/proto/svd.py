@@ -43,7 +43,6 @@ class IndexSVD(nn.Module):
                query: torch.FloatTensor,
                k: int, ef_search: int):
         assert query.dim() == 2
-        batch_size = query.size(0)
 
         # transform
         query = torch.matmul(query, self.VT.T)

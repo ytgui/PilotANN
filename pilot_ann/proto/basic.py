@@ -55,6 +55,13 @@ class IndexNSW(nn.Module):
         )
         return nodes.tolist()
 
+    def closedlist(self,
+                   query: torch.Tensor):
+        assert query.dim() == 2
+        return [
+            None for _ in range(query.size(0))
+        ]
+
     def search(self,
                query: torch.FloatTensor,
                k: int,
@@ -66,6 +73,7 @@ class IndexNSW(nn.Module):
         entry = self.entry(
             query, ef_search=ef_search
         )
+        closedlist = self.closedlist(query)
 
         # traverse
         output = [
@@ -74,25 +82,34 @@ class IndexNSW(nn.Module):
                 indices=self.indices,
                 mapping=self.mapping,
                 storage=self.storage,
-                query=query[i], ep=entry[i],
-                k=k, ef_search=ef_search
+                query=query[i], k=k,
+                ef_search=ef_search,
+                closedlist=closedlist[i],
+                ep=entry[i]
             )
             for i in range(batch_size)
         ]
 
         # output
-        topk = torch.LongTensor(
-            [item['topk'] for item in output]
-        )
+        topk = torch.LongTensor([
+            item['topk'] for item in output
+        ])
+        visited = [
+            item['visited'] for item in output
+        ]
         n_steps = sum(
             item['n_steps'] for item in output
         )
         n_visited = sum(
             item['n_visited'] for item in output
         )
+        n_computed = sum(
+            item['n_computed'] for item in output
+        )
         output = {
-            'topk': topk,
+            'topk': topk, 'visited': visited,
             'n_steps': n_steps / len(output),
-            'n_visited': n_visited / len(output)
+            'n_visited': n_visited / len(output),
+            'n_computed': n_computed / len(output)
         }
         return output
