@@ -59,7 +59,7 @@ class IndexNSW(nn.Module):
                    query: torch.Tensor):
         assert query.dim() == 2
         return [
-            None for _ in range(query.size(0))
+            [] for _ in range(query.size(0))
         ]
 
     def search(self,

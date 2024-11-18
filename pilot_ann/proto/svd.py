@@ -67,9 +67,11 @@ class IndexSVD(nn.Module):
         # output
         output = {
             'topk': output_2['topk'],
-            'major-steps': output_1['n_steps'],
-            'finer-steps': output_2['n_steps'],
-            'major-visited': output_1['n_visited'],
-            'finer-visited': output_2['n_visited']
+            'steps-1': output_1['n_steps'],
+            'steps-2': output_2['n_steps'],
+            'visited-1': output_1['n_visited'],
+            'visited-2': output_2['n_visited'],
+            'computed-1': output_1['n_computed'],
+            'computed-2': output_2['n_computed']
         }
         return output

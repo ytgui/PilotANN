@@ -60,7 +60,7 @@ def main():
 
             # stats
             for name in output:
-                if name in ['topk']:
+                if name in ['topk', 'visited']:
                     continue
                 print('{}@{}: {:.3f}'.format(
                     name, args.top_k, output[name]
