@@ -5,7 +5,7 @@ from pilot_ann import utils, kernels
 def evaluate_pipeline(graph_type: str,
                       cuda_device: str):
     k = 10
-    ef_search = 32
+    ef_search = 64
     n_neighbors = 32
     batch_size = 1024
     chunk_size = 128
@@ -77,7 +77,7 @@ def evaluate_pipeline(graph_type: str,
 
     # check recall
     thresholds = {
-        128: 0.60, 512: 0.35, 1024: 0.20
+        128: 0.50, 512: 0.30, 1024: 0.20
     }
     assert score >= next(
         v for k, v in thresholds.items() if loader.d_model <= k

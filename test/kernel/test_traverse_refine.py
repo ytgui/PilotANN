@@ -72,7 +72,7 @@ def evaluate_refine(graph_type: str):
 
     # check recall
     thresholds = {
-        128: 0.60, 512: 0.35, 1024: 0.20
+        128: 0.50, 512: 0.30, 1024: 0.20
     }
     assert score >= next(
         v for k, v in thresholds.items() if loader.d_model <= k

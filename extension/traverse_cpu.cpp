@@ -196,7 +196,7 @@ void traverse_cpu(
     static std::shared_ptr<BitmaskPool<int32_t>> bitmask_pool;
     if (!bitmask_pool || bitmask_pool->n_elements() != n_storage) {
         std::cout << "[INFO] creating bitmask_pool" << std::endl;
-        bitmask_pool = std::make_shared<BitmaskPool<int32_t>>(n_storage, 1);
+        bitmask_pool = std::make_shared<BitmaskPool<int32_t>>(n_storage);
     }
 
     // process
@@ -207,7 +207,7 @@ void traverse_cpu(
 
         // advance
         bitmask->advance();
-        CHECK_CPU(bitmask->tensor(), 2, torch::kInt32);
+        CHECK_CPU(bitmask->tensor(), 1, torch::kInt32);
         TORCH_CHECK(bitmask->tensor().size(-1) == n_storage);
 
         // dispatch
@@ -285,7 +285,7 @@ void traverse_refine(
     static std::shared_ptr<BitmaskPool<int32_t>> bitmask_pool;
     if (!bitmask_pool || bitmask_pool->n_elements() != n_storage) {
         std::cout << "[INFO] creating bitmask_pool" << std::endl;
-        bitmask_pool = std::make_shared<BitmaskPool<int32_t>>(n_storage, 1);
+        bitmask_pool = std::make_shared<BitmaskPool<int32_t>>(n_storage);
     }
 
     // process
@@ -296,7 +296,7 @@ void traverse_refine(
 
         // advance
         bitmask->advance();
-        CHECK_CPU(bitmask->tensor(), 2, torch::kInt32);
+        CHECK_CPU(bitmask->tensor(), 1, torch::kInt32);
         TORCH_CHECK(bitmask->tensor().size(-1) == n_storage);
 
         // dispatch

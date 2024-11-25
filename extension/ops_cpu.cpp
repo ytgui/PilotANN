@@ -36,7 +36,7 @@ void heapq_replace_cpu(
 
 torch::Tensor bitmask_put_cpu(const torch::Tensor &keys, index_t n) {
     CHECK_CPU(keys, 1, torch::kInt64);
-    auto bitmask = Bitmask<int32_t>(n, 1, keys.device());
+    auto bitmask = Bitmask<int32_t>(n);
 
     // simple
     bitmask.advance();

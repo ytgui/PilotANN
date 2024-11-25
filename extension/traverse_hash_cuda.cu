@@ -1,10 +1,9 @@
 // clang-format off
 #include "inc/common.h"
 #include "inc/heapq.cuh"
-#include "inc/bloom.cuh"
+#include "inc/bitmask.hpp"
 // clang-format on
 
-#define FNV_STEP 4
 #define TILE_SIZE 4
 #define TEAM_SIZE 8
 #define N_WORKERS 4
@@ -12,7 +11,48 @@
 #define WARP_MASK 0xffffffff
 #define BEAM_WIDTH 4
 #define BUFFER_SIZE 256
-#define BITMASK_SIZE 32768
+#define HASHMAP_SIZE 32
+
+// clang-format off
+template <typename K>
+__device__ bool hashmap_lap(K *keyspace, int *timespace, K key) {
+    if (key < 0) {
+        return true;
+    }
+    auto hash = (13 * key) % HASHMAP_SIZE;
+    auto idx = hash * WARP_SIZE + threadIdx.x;
+
+    // lookup
+    auto found = __ballot_sync(
+        WARP_MASK, keyspace[idx] == key
+    );
+
+    // reduce
+    auto min_time = timespace[idx], max_time = timespace[idx];
+    for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+        min_time = min(
+            min_time, __shfl_xor_sync(WARP_MASK, min_time, offset)
+        );
+        max_time = max(
+            max_time, __shfl_xor_sync(WARP_MASK, max_time, offset)
+        );
+    }
+
+    // update
+    auto position = -1;
+    if (found != 0) {
+        position = __ffs(found) - 1;
+    } else {
+        auto ballot = __ballot_sync(
+            WARP_MASK, timespace[idx] == min_time
+        );
+        position = __ffs(ballot) - 1;
+    }
+    keyspace[hash * WARP_SIZE + position] = key;
+    timespace[hash * WARP_SIZE + position] = max_time + 1;
+    return found;
+}
+// clang-format on
 
 // clang-format off
 template <typename scalar_t, typename vector_t>
@@ -45,35 +85,29 @@ __device__ scalar_t _compute_dist_cuda(
 template <typename scalar_t, typename vector_t, int HEAP_SIZE>
 __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
     traverse_cuda_kernel(
-        index_t *output_I, scalar_t *output_D, const index_t *indptr,
-        const index_t *indices, const index_t *mapping, const scalar_t *storage,
-        const scalar_t *query, const index_t *initial_I, const scalar_t *initial_D,
-        int n_storage, int d_model, int n_neighbors, int n_initials, int ef_search
+        index_t *output_I, scalar_t *output_D, int8_t *bitmask,
+        const index_t *indptr, const index_t *indices, const index_t *mapping,
+        const scalar_t *storage, const scalar_t *query, const index_t *initial_I,
+        const scalar_t *initial_D, int n_storage, int d_model, int n_neighbors,
+        int n_initials, int ef_search, int32_t mask_value
     ) {
     // index
     auto block_idx = blockIdx.x;
     auto block_size = blockDim.y * WARP_SIZE;
     auto thread_idx = threadIdx.y * WARP_SIZE + threadIdx.x;
 
-    // bloom
-    __shared__ uint32_t bitmask[BITMASK_SIZE / 32];
-    auto visiting = [&](index_t node) -> bool {
-        if (node < 0) {
-            return true;
+    // hashmap
+    __shared__ int timespace[HASHMAP_SIZE * WARP_SIZE];
+    __shared__ index_t keyspace[HASHMAP_SIZE * WARP_SIZE];
+    if (threadIdx.y == 0) {
+        for (auto i = threadIdx.x; i < HASHMAP_SIZE; i += WARP_SIZE) {
+            keyspace[i] = -1; timespace[i] = 0;
         }
-        auto found = true;
-        uint32_t hash_val = FNV_OFFSET;
-        for (auto i = 0; i < FNV_STEP; i += 1) {
-            hash_val = fnv1a_32(node, hash_val);
-            auto n = (hash_val % BITMASK_SIZE) / 32;
-            auto r = (hash_val % BITMASK_SIZE) % 32;
-            auto old = atomicOr(&bitmask[n], 0x01 << r);
-            found &= 0x01 & (old >> r);
+        __syncwarp();
+        for (auto i = 0; i < n_initials; i += 1) {
+            auto node = initial_I[block_idx * n_initials + i];
+            hashmap_lap<index_t>(keyspace, timespace, node);
         }
-        return found;
-    };
-    for (auto i = thread_idx; i < BITMASK_SIZE / 32; i += block_size) {
-        bitmask[i] = 0;
     }
 
     // load query
@@ -107,78 +141,65 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
             buffer_D[threadIdx.y], buffer_I[threadIdx.y],
             HEAP_SIZE, -distance, node
         );
-        visiting(node);
     }
     __syncthreads();
 
     // neighbors
     __shared__ index_t cached_neighbors[BUFFER_SIZE];
     auto fetch_neighbors = [&]() -> int {
-        // pop
-        index_t u = -1;
-        while (true) {
+        // expand
+        for (auto i = 0; i < BEAM_WIDTH; i += 1) {
+            auto worst = -buffer_D[i][0];
             auto output = heap_pop<scalar_t, index_t>(
-                openlist_D[threadIdx.y], openlist_I[threadIdx.y], HEAP_SIZE
+                openlist_D[i], openlist_I[i], HEAP_SIZE
             );
-            if (u = output.value; u < 0) {
-                break;
-            }
-            if (output.key >= -buffer_D[threadIdx.y][0]) {
-                u = -1;
-                break;
-            }
-            if (indptr[u] == indptr[u + 1]) {
+            if (output.key >= worst || output.value < 0) {
                 continue;
             }
-            break;
-        }
-
-        // expand
-        for (auto i = threadIdx.x; i < n_neighbors; i += WARP_SIZE) {
-            auto offset = threadIdx.y * n_neighbors;
-            if (u >= 0 && (indptr[u] + i < indptr[u + 1])) {
-                if (auto v = indices[indptr[u] + i]; !visiting(v)) {
-                    cached_neighbors[offset + i] = v;
-                    continue;
-                }
+            auto left = indptr[output.value];
+            for (auto j = threadIdx.x; j < n_neighbors; j += WARP_SIZE) {
+                cached_neighbors[i * n_neighbors + j] = indices[left + j];
             }
-            cached_neighbors[offset + i] = -1;
         }
-        __syncthreads();
+        __syncwarp();
+
+        // hashmap
+        for (auto i = 0; i < BEAM_WIDTH * n_neighbors; i += 1) {
+            auto node = cached_neighbors[i];
+            auto visited = hashmap_lap<index_t>(keyspace, timespace, node);
+            if (visited == true) {
+                cached_neighbors[i] = -1;
+            }
+        }
+        __syncwarp();
 
         // compact
-        __shared__ int n_workloads;
-        if (threadIdx.y == 0) {
-            n_workloads = 0;
-
-            // visit
-            auto cursor = 0;
-            for (auto i = threadIdx.x; i < BEAM_WIDTH * n_neighbors; i += WARP_SIZE) {
-                auto v = cached_neighbors[i];
-                auto ballot = __ballot_sync(WARP_MASK, v >= 0);
-                if (ballot == 0) {
-                    continue;
-                }
-                auto offset = __popc(
-                    ((0x01 << threadIdx.x) - 1) & ballot
-                );
-                if (v >= 0) {
-                    cached_neighbors[cursor + offset] = v;
-                }
-                cursor += __popc(ballot);
+        auto cursor = 0;
+        for (auto i = threadIdx.x; i < BEAM_WIDTH * n_neighbors; i += WARP_SIZE) {
+            auto v = cached_neighbors[i];
+            auto ballot = __ballot_sync(WARP_MASK, v >= 0);
+            if (ballot == 0) {
+                continue;
             }
-            n_workloads = cursor;
+            auto offset = __popc(
+                ((0x01 << threadIdx.x) - 1) & ballot
+            );
+            if (v >= 0) {
+                cached_neighbors[cursor + offset] = v;
+            }
+            cursor += __popc(ballot);
         }
-        __syncthreads();
-
-        //
-        return n_workloads;
+        return cursor;
     };
 
     // iterate
     for (auto step = 0; step < ef_search; step += 1) {
         // expand
-        auto n_workloads = fetch_neighbors();
+        __shared__ int n_workloads;
+        if (threadIdx.y == 0) {
+            n_workloads = fetch_neighbors();
+        }
+        __syncthreads();
 
         // compute distances
         auto tile_idx = threadIdx.x % TEAM_SIZE;
@@ -277,22 +298,41 @@ void traverse_cuda(
     TORCH_CHECK(BEAM_WIDTH * n_neighbors <= BUFFER_SIZE);
     TORCH_CHECK(n_neighbors % WARP_SIZE == 0);
 
+    // bitmask
+    auto n_elements = 4 * (n_storage >> 2);
+    static std::shared_ptr<BitmaskPool<int8_t>> bitmask_pool;
+    if (!bitmask_pool || bitmask_pool->batch_size() != batch_size ||
+        bitmask_pool->n_elements() != n_elements) {
+        std::cout << "[INFO] creating bitmask_pool" << std::endl;
+        bitmask_pool = std::make_shared<BitmaskPool<int8_t>>(
+            n_elements, batch_size, query.device()
+        );
+    }
+    auto bitmask = bitmask_pool->get();
+
+    // advance
+    bitmask->advance();
+    CHECK_CUDA(bitmask->tensor(), 2, torch::kInt8);
+    TORCH_CHECK(bitmask->tensor().size(0) == batch_size);
+    TORCH_CHECK(bitmask->tensor().size(-1) == n_elements);
+
     // dispatch
     auto stream = c10::cuda::getCurrentCUDAStream();
-#define DISPATCH_KERNEL(HEAP_SIZE)                                            \
-    do {                                                                      \
-        auto smbytes = d_model * sizeof(float);                               \
-        dim3 threads(WARP_SIZE, BEAM_WIDTH), blocks(batch_size);              \
-        traverse_cuda_kernel<float, float4, HEAP_SIZE>                        \
-            <<<blocks, threads, smbytes, stream.stream()>>>(                  \
-                output_I.data_ptr<index_t>(), output_D.data_ptr<float>(),     \
-                indptr.data_ptr<index_t>(), indices.data_ptr<index_t>(),      \
-                mapping.data_ptr<index_t>(), storage.data_ptr<float>(),       \
-                query.data_ptr<float>(), initial_I.data_ptr<index_t>(),       \
-                initial_D.data_ptr<float>(), n_storage, d_model, n_neighbors, \
-                n_initials, ef_search                                         \
-            );                                                                \
-        CUDA_CHECH(cudaGetLastError());                                       \
+#define DISPATCH_KERNEL(HEAP_SIZE)                                          \
+    do {                                                                    \
+        auto smbytes = d_model * sizeof(float);                             \
+        dim3 threads(WARP_SIZE, BEAM_WIDTH), blocks(batch_size);            \
+        traverse_cuda_kernel<float, float4, HEAP_SIZE>                      \
+            <<<blocks, threads, smbytes, stream.stream()>>>(                \
+                output_I.data_ptr<index_t>(), output_D.data_ptr<float>(),   \
+                bitmask->data_ptr(), indptr.data_ptr<index_t>(),            \
+                indices.data_ptr<index_t>(), mapping.data_ptr<index_t>(),   \
+                storage.data_ptr<float>(), query.data_ptr<float>(),         \
+                initial_I.data_ptr<index_t>(), initial_D.data_ptr<float>(), \
+                n_storage, d_model, n_neighbors, n_initials, ef_search,     \
+                bitmask->marker()                                           \
+            );                                                              \
+        CUDA_CHECH(cudaGetLastError());                                     \
     } while (0)
 
     // launch
