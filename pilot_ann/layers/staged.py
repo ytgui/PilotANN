@@ -3,6 +3,20 @@ from torch import nn
 from pilot_ann import utils, kernels, layers
 
 
+class GraphModule(nn.Module):
+    def __init__(self,
+                 indptr: list,
+                 indices: list):
+        nn.Module.__init__(self)
+        #
+        self.register_buffer(
+            'indptr', torch.LongTensor(indptr)
+        )
+        self.register_buffer(
+            'indices', torch.LongTensor(indices)
+        )
+
+
 class IndexStaged(nn.Module):
     def __init__(self,
                  d_model: int,
@@ -11,10 +25,13 @@ class IndexStaged(nn.Module):
                  graph_method: str = 'nsw32',
                  entry_method: str = 'random32'):
         nn.Module.__init__(self)
+        assert d_principle <= d_model
         # params
         self.d_model = d_model
         self.d_principle = d_principle
         self.sample_ratio = sample_ratio
+        self.graph_method = graph_method
+        self.entry_method = entry_method
         self.cuda_device = None
         # builder
         for graph_type in ['nsw', 'nsg']:
@@ -31,25 +48,79 @@ class IndexStaged(nn.Module):
         self.nodelist: torch.Tensor
         self.storage_cuda: torch.Tensor
         # graphs
-        self.subgraph: list[torch.Tensor]
-        self.fullgraph: list[torch.Tensor]
-        self.subgraph_cuda: list[torch.Tensor]
+        self.subgraph: GraphModule
+        self.fullgraph: GraphModule
+        self.subgraph_cuda: GraphModule
         # entry
         self.entry = layers.IndexEntry(
             d_model=d_principle, method=entry_method
         )
+
+    @classmethod
+    def load(self, ckpt_file: any):
+        checkpoint = torch.load(ckpt_file)
+        state_dict = checkpoint['state_dict']
+
+        # index
+        config = checkpoint['config']
+        index = IndexStaged(
+            d_model=config['d_model'],
+            d_principle=config['d_principle'],
+            graph_method=config['graph_method'],
+            entry_method=config['entry_method'],
+            sample_ratio=-1.0
+        )
+
+        # init buffers
+        index.register_buffer(
+            'VT', state_dict['VT']
+        )
+        index.register_buffer(
+            'storage', state_dict['storage']
+        )
+        index.register_buffer(
+            'mapping', state_dict['mapping']
+        )
+        index.register_buffer(
+            'nodelist', state_dict['nodelist']
+        )
+        index.register_module(
+            'subgraph', GraphModule(
+                indptr=state_dict['subgraph.indptr'],
+                indices=state_dict['subgraph.indices']
+            )
+        )
+        index.register_module(
+            'fullgraph', GraphModule(
+                indptr=state_dict['fullgraph.indptr'],
+                indices=state_dict['fullgraph.indices']
+            )
+        )
+        if 'entry.entry_nodes' in state_dict:
+            index.entry.register_buffer(
+                'entry_nodes', state_dict['entry.entry_nodes']
+            )
+        if 'entry.entry_vectors' in state_dict:
+            index.entry.register_buffer(
+                'entry_vectors', state_dict['entry.entry_vectors']
+            )
+        if 'entry.route_vectors' in state_dict:
+            index.entry.register_buffer(
+                'route_vectors', state_dict['entry.route_vectors']
+            )
+        return index
 
     def to(self, device: str):
         self.cuda_device = device
 
         # copy
         self.entry.to(device=device)
-        assert len(self.subgraph) == 2
-        self.subgraph_cuda = [
-            self.subgraph[0].to(device=device),
-            self.subgraph[1].to(device=device),
-            self.mapping.to(device=device)
-        ]
+        self.mapping = self.mapping.to(device=device)
+        self.subgraph_cuda = GraphModule(
+            indptr=self.subgraph.indptr,
+            indices=self.subgraph.indices
+        )
+        self.subgraph_cuda.to(device=device)
         storage = torch.index_select(
             self.storage, dim=0, index=self.nodelist
         )
@@ -59,14 +130,18 @@ class IndexStaged(nn.Module):
     def train(self, x: torch.Tensor):
         assert x.dim() == 2
         assert x.size(-1) == self.d_model
+        assert 0.0 < self.sample_ratio <= 1.0
 
         # decompose
         U, S, V = torch.svd(x)
-        self.VT = V.T.contiguous()
+        self.register_buffer(
+            'VT', V.T.contiguous()
+        )
 
         # transform
         print('svd', self.d_principle)
         x = torch.matmul(U, torch.diag(S))
+        self.register_buffer('storage', x)
 
         # fullgraph
         print('build', self.graph_type)
@@ -74,11 +149,11 @@ class IndexStaged(nn.Module):
             x, graph_type=self.graph_type,
             n_neighbors=self.n_neighbors
         )
-        self.fullgraph = [
-            torch.LongTensor(graph[0]),
-            torch.LongTensor(graph[1])
-        ]
-        self.storage = x
+        self.register_module(
+            'fullgraph', GraphModule(
+                indptr=graph[0], indices=graph[1]
+            )
+        )
 
         # sampling
         print('sampling', self.sample_ratio)
@@ -90,12 +165,17 @@ class IndexStaged(nn.Module):
             ),
             n_neighbors=self.n_neighbors
         )
-        self.subgraph = [
-            torch.LongTensor(subgraph[0]),
-            torch.LongTensor(subgraph[1])
-        ]
-        self.nodelist = torch.LongTensor(subgraph[2])
-        self.mapping = torch.LongTensor(subgraph[-1])
+        self.register_module(
+            'subgraph', GraphModule(
+                indptr=subgraph[0], indices=subgraph[1]
+            )
+        )
+        self.register_buffer(
+            'nodelist', torch.LongTensor(subgraph[2])
+        )
+        self.register_buffer(
+            'mapping', torch.LongTensor(subgraph[-1])
+        )
 
         # entry
         self.entry.train(x[:, :self.d_principle])
@@ -117,11 +197,21 @@ class IndexStaged(nn.Module):
 
         # traverse
         output_I, output_D = kernels.pipeline(
-            graph=self.fullgraph,
+            graph=[
+                self.fullgraph.indptr,
+                self.fullgraph.indices
+            ],
             storage=self.storage,
-            subgraph=self.subgraph,
+            subgraph=[
+                self.subgraph.indptr,
+                self.subgraph.indices
+            ],
+            subgraph_cuda=[
+                self.subgraph_cuda.indptr,
+                self.subgraph_cuda.indices,
+                self.mapping
+            ],
             storage_cuda=self.storage_cuda,
-            subgraph_cuda=self.subgraph_cuda,
             query=query, query_cuda=query_cuda,
             initial_I=EP_I, initial_D=EP_D, k=k,
             n_neighbors=self.n_neighbors, ef_search=ef_search,

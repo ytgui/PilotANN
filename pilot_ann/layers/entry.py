@@ -15,6 +15,9 @@ class IndexEntry(nn.Module):
         self.entry_nodes: torch.Tensor
         self.entry_vectors: torch.Tensor
         self.route_vectors: torch.Tensor
+        self.register_buffer('entry_nodes', None)
+        self.register_buffer('entry_vectors', None)
+        self.register_buffer('route_vectors', None)
 
     def nodes(self):
         nodes = self.entry_nodes.flatten()
@@ -28,7 +31,7 @@ class IndexEntry(nn.Module):
             raise RuntimeError
         if storage.size(-1) != self.d_model:
             raise RuntimeError
-        if hasattr(self, 'entry_nodes'):
+        if self.entry_nodes is not None:
             return
         print('[INFO] building entry')
 

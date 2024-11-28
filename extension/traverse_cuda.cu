@@ -179,6 +179,9 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
     for (auto step = 0; step < ef_search; step += 1) {
         // expand
         auto n_workloads = fetch_neighbors();
+        if (n_workloads < N_WORKERS) {
+            break;
+        }
 
         // compute distances
         auto tile_idx = threadIdx.x % TEAM_SIZE;

@@ -50,13 +50,17 @@ def evaluate_stage(entry_method: str,
     )
 
 
-def main():
+def test_staged_1():
     evaluate_stage(
         entry_method='random32', graph_method='nsw32'
     )
 
     #
     print('[PASS] test_staged_1()')
+
+
+def main():
+    test_staged_1()
 
 
 if __name__ == '__main__':
