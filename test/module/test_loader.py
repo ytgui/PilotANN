@@ -7,8 +7,9 @@ def test_loader():
 
     #
     for name in [
-        'fuzz-16k', 'fuzz-64k', 'deep-64k',
-        'deep-1m', 'text2img-64k', 'laion-64k'
+        'fuzz-16k', 'fuzz-64k',
+        'deep-64k', 'text2img-64k', 'laion-64k',
+        'deep-1m', 'text2img-1m', 'laion-1m'
     ]:
         # init
         loader = utils.DataLoader(name=name)

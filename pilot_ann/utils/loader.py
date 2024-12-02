@@ -158,54 +158,39 @@ def load_deep(name: str):
 
 
 def load_numpy(name: str):
-    n_queries = 16384
     if name == 'laion-64k':
         n_storage = 65536
-        data_root = Path(
-            '.dataset/laion-1m'
-        )
+        data_root = '.dataset/laion-1m'
     elif name == 'laion-1m':
         n_storage = 1_000_000
-        data_root = Path(
-            '.dataset/laion-1m'
-        )
-    elif name == 'laion-10m':
-        n_storage = 10_000_000
-        data_root = Path(
-            '.dataset/laion-20m'
-        )
-    elif name == 'laion-20m':
-        n_storage = 20_000_000
-        data_root = Path(
-            '.dataset/laion-20m'
-        )
+        data_root = '.dataset/laion-1m'
     else:
         raise NotImplementedError
 
+    # query
+    query = torch.FloatTensor(
+        np.load(data_root + '/query.npy')
+    )
+    target = torch.LongTensor(
+        np.load(data_root + '/groundtruth.npy')
+    )
+
     # load
-    query, storage = None, []
-    for child in sorted(data_root.iterdir()):
+    storage = []
+    for child in sorted(Path(data_root).iterdir()):
         if child.suffix != '.npy':
+            continue
+        if child.name in ['query.npy',
+                          'groundtruth.npy']:
             continue
         embedding = torch.FloatTensor(
             np.load(child.absolute())
         )
-        if query is None:
-            query = embedding
-            continue
         storage.append(embedding)
-
-    # process
-    indices = torch.randperm(n=query.size(0))
-    query = torch.index_select(
-        query, dim=0, index=indices[:n_queries]
-    )
     storage = torch.cat(storage, dim=0)
-    if storage.size(0) <= n_storage:
-        target = search_target(
-            query=query, storage=storage
-        )
-    else:
+
+    # shrink
+    if storage.size(0) > n_storage:
         storage, target = shrink_dataset(
             query, storage=storage, n_targets=n_storage
         )
@@ -220,9 +205,9 @@ class DataLoader:
             output = load_deep(name)
         elif name.startswith('text2img'):
             output = load_deep(name)
-        elif name.startswith('laion'):
-            output = load_numpy(name)
         elif name.startswith('wiki'):
+            output = load_numpy(name)
+        elif name.startswith('laion'):
             output = load_numpy(name)
         else:
             raise NotImplementedError
