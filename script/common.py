@@ -29,13 +29,12 @@ class ANNProfiler:
                  n_queries: int,
                  d_principle: int,
                  entry_method: str,
-                 sample_ratio: float = 0.25):
+                 sample_ratio: float):
         self.algorithm = algorithm
         self.n_queries = n_queries
         self.d_principle = d_principle
         self.entry_method = entry_method
         self.sample_ratio = sample_ratio
-        assert algorithm in ['hnsw', 'nsg']
         # storage
         self.loader = utils.DataLoader(dataset)
         print('[{}] dataset: {}, d_model: {}'.format(
@@ -43,6 +42,23 @@ class ANNProfiler:
         )
         # index
         self.index = None
+
+    def dump(self, checkpoint: str):
+        if isinstance(self.index, faiss.IndexHNSWFlat):
+            faiss.write_index(self.index, checkpoint)
+        elif isinstance(self.index, layers.IndexStaged):
+            torch.save(self.index.dump(), f=checkpoint)
+        else:
+            raise NotImplementedError
+
+    def load(self, checkpoint: str):
+        if checkpoint.endswith('.faiss'):
+            self.index = faiss.read_index(checkpoint)
+        elif checkpoint.endswith('.ckpt'):
+            self.index = layers.IndexStaged.load(checkpoint)
+            self.index.to(device='cuda')
+        else:
+            raise NotImplementedError
 
     @timing_simple()
     def search_faiss(self,
@@ -79,7 +95,7 @@ class ANNProfiler:
 
     def build(self,
               method: str,
-              n_neighbors: int,):
+              n_neighbors: int):
         # init
         storage = self.loader.load_storage()
 

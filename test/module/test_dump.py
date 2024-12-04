@@ -15,17 +15,7 @@ def dump(loader: utils.DataLoader, output: str):
     index.train(x=loader.storage)
 
     # dump
-    config = {
-        'd_model': index.d_model,
-        'd_principle': index.d_principle,
-        'graph_method': index.graph_method,
-        'entry_method': index.entry_method
-    }
-    state_dict = index.state_dict()
-    torch.save(
-        {'config': config,
-         'state_dict': state_dict}, f=output
-    )
+    torch.save(index.dump(), f=output)
 
 
 def test_dump_1():

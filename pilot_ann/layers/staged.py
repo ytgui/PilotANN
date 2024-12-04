@@ -110,6 +110,17 @@ class IndexStaged(nn.Module):
             )
         return index
 
+    def dump(self):
+        return {
+            'config': {
+                'd_model': self.d_model,
+                'd_principle': self.d_principle,
+                'graph_method': self.graph_method,
+                'entry_method': self.entry_method
+            },
+            'state_dict': self.state_dict()
+        }
+
     def to(self, device: str):
         self.cuda_device = device
 
