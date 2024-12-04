@@ -4,13 +4,43 @@ from pilot_ann import utils, kernels
 
 
 def test_routing_1():
+    n_routers = 32
+
+    # init
+    loader = utils.DataLoader('fuzz-64k')
+    storage = loader.load_storage()
+
+    # router
+    router, entry_nodes = utils.router_init(
+        storage=storage, init_nodes=None,
+        n_routers=n_routers, n_leaves=n_routers
+    )
+    entry_vectors = storage[entry_nodes]
+
+    # check
+    router = torch.tile(
+        router.unsqueeze(0), dims=[n_routers, 1, 1]
+    )
+    dists = torch.sum(
+        torch.cdist(router, entry_vectors), dim=-1
+    )
+    indices = torch.argmin(dists, dim=-1)
+    assert torch.allclose(
+        indices, torch.arange(n_routers)
+    )
+
+    #
+    print('[PASS] test_routing_1()')
+
+
+def test_routing_2():
     n_routers = random.choice([8, 16])
     n_leaves = random.choice([32, 64])
     batch_size = random.randrange(1, 1024)
     cuda_device = 'cuda'
 
     # init
-    loader = utils.DataLoader('fuzz-16k')
+    loader = utils.DataLoader('fuzz-64k')
     storage = loader.load_storage()
     query = loader.load_query(batch_size, k=10)[0]
     init_nodes = random.choices(
@@ -55,11 +85,12 @@ def test_routing_1():
     )
 
     #
-    print('[PASS] test_routing_1()')
+    print('[PASS] test_routing_2()')
 
 
 def main():
     test_routing_1()
+    test_routing_2()
 
 
 if __name__ == '__main__':

@@ -26,27 +26,28 @@ def router_init(storage: torch.Tensor,
     route_vectors = storage[list(router)]
 
     # layer-1
+    visited = set()
     entry_nodes = [
         [] for _ in range(n_routers)
     ]
     for _ in range(n_leaves):
+        # nodes
         nodes = set()
-        while len(nodes) < 2 * n_routers:
+        while len(nodes) < min(1024, n_routers ** 2):
             if init_nodes:
-                nodes.add(
-                    init_nodes.pop(-1)
-                )
+                new_node = init_nodes.pop(-1)
             else:
-                nodes.add(
-                    random.randrange(n_storage)
-                )
+                new_node = random.randrange(n_storage)
+            if new_node in visited:
+                continue
+            visited.add(new_node)
+            nodes.add(new_node)
         nodes = list(nodes)
-        #
-        indices = torch.argmin(
-            torch.cdist(
-                route_vectors, storage[nodes], p=2.0
-            ), dim=-1
+        # distances
+        dists = torch.cdist(
+            route_vectors, storage[nodes], p=2.0
         )
+        indices = torch.argmin(dists, dim=-1)
         for i in range(n_routers):
             entry_nodes[i].append(
                 nodes[indices[i].item()]
