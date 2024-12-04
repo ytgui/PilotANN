@@ -200,7 +200,7 @@ void traverse_cpu(
     }
 
     // process
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(guided)
     for (auto i = 0; i < batch_size; i += 1) {
         // init
         auto bitmask = bitmask_pool->get();
@@ -229,8 +229,12 @@ void traverse_cpu(
             DISPATCH_KERNEL_1(16, i);
         } else if (ef_search <= 32) {
             DISPATCH_KERNEL_1(32, i);
+        } else if (ef_search <= 48) {
+            DISPATCH_KERNEL_1(48, i);
         } else if (ef_search <= 64) {
             DISPATCH_KERNEL_1(64, i);
+        } else if (ef_search <= 96) {
+            DISPATCH_KERNEL_1(96, i);
         } else if (ef_search <= 128) {
             DISPATCH_KERNEL_1(128, i);
         } else if (ef_search <= 192) {
@@ -289,7 +293,7 @@ void traverse_refine(
     }
 
     // process
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(guided)
     for (auto i = 0; i < batch_size; i += 1) {
         // init
         auto bitmask = bitmask_pool->get();
@@ -329,8 +333,12 @@ void traverse_refine(
             DISPATCH_KERNEL_2(16, i);
         } else if (ef_search <= 32) {
             DISPATCH_KERNEL_2(32, i);
+        } else if (ef_search <= 48) {
+            DISPATCH_KERNEL_2(48, i);
         } else if (ef_search <= 64) {
             DISPATCH_KERNEL_2(64, i);
+        } else if (ef_search <= 96) {
+            DISPATCH_KERNEL_2(96, i);
         } else if (ef_search <= 128) {
             DISPATCH_KERNEL_2(128, i);
         } else if (ef_search <= 192) {

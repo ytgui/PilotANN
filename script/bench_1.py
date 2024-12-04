@@ -9,17 +9,17 @@ def main():
         '--top_k', type=int, default=10
     )
     parser.add_argument(
-        '--d_principle', type=int, default=64
+        '--d_principle', type=int, default=192
     )
     parser.add_argument(
-        '--sample_ratio', type=float, default=0.5
+        '--sample_ratio', type=float, default=0.25
+    )
+    parser.add_argument(
+        '--n_neighbors', type=int, default=32
     )
     parser.add_argument(
         '--ef_search', type=list,
         default=[16, 32, 48, 64, 96, 128, 192, 256]
-    )
-    parser.add_argument(
-        '--n_neighbors', type=int, default=32
     )
     parser.add_argument(
         '--n_queries', type=int, default=1024
@@ -32,7 +32,7 @@ def main():
         '--router', type=str, default='router32x32'
     )
     parser.add_argument(
-        '--dataset', type=str, default='deep-1m'
+        '--dataset', type=str, default='laion-1m'
     )
     args = parser.parse_args()
 
@@ -48,7 +48,7 @@ def main():
 
     # evaluate
     records = {
-        'faiss': [], 'search-pilot': []
+        'search-pilot': [], 'faiss': []
     }
     for method in records.keys():
         profiler.build(

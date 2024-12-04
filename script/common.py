@@ -20,7 +20,7 @@ def timing_simple():
 
 class ANNProfiler:
     N_WARMUP = 2
-    CHUNK_SIZE = 128
+    CHUNK_SIZE = 256
     EF_CONSTRUCT = 80
 
     def __init__(self,
