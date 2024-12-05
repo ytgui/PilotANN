@@ -144,15 +144,12 @@ class IndexStaged(nn.Module):
         assert 0.0 < self.sample_ratio <= 1.0
 
         # decompose
-        U, S, V = torch.svd(x)
+        print('svd', self.d_principle)
+        x, V = utils.svd(x, max_size=1_000_000)
+        self.register_buffer('storage', x)
         self.register_buffer(
             'VT', V.T.contiguous()
         )
-
-        # transform
-        print('svd', self.d_principle)
-        x = torch.matmul(U, torch.diag(S))
-        self.register_buffer('storage', x)
 
         # fullgraph
         print('build', self.graph_type)

@@ -1,3 +1,6 @@
+# svd
+from .svd import svd
+
 # recall
 from .recall import recall
 
