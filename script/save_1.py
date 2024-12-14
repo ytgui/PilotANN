@@ -1,7 +1,4 @@
-import faiss
-import torch
 import argparse
-from pilot_ann import layers
 from common import ANNProfiler
 
 
@@ -14,7 +11,7 @@ def main():
         '--method', type=str, default='faiss'
     )
     parser.add_argument(
-        '--d_principle', type=int, default=64
+        '--d_principle', type=int, default=96
     )
     parser.add_argument(
         '--sample_ratio', type=float, default=0.25

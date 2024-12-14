@@ -144,7 +144,6 @@ class ANNProfiler:
                 graph_method=graph_method
             )
             index.train(storage)
-            index.to(device='cuda')
         else:
             raise NotImplementedError
         self.index = index
@@ -171,6 +170,8 @@ class ANNProfiler:
                 )
                 indices = torch.from_numpy(indices)
             elif isinstance(self.index, layers.IndexStaged):
+                if not self.index.cuda_device:
+                    self.index.to(device='cuda')
                 indices, duration = self.search_pilot(
                     self.index, query=query, k=k, ef_search=ef_search
                 )
