@@ -104,9 +104,6 @@ def load_deep(name: str):
     elif name == 'deep-10m':
         n_storage = 10_000_000
         data_root = '.dataset/deep-10m'
-    elif name == 'deep-50m':
-        n_storage = 50_000_000
-        data_root = '.dataset/deep-100m'
     elif name == 'deep-100m':
         n_storage = 100_000_000
         data_root = '.dataset/deep-100m'
@@ -118,10 +115,10 @@ def load_deep(name: str):
         data_root = '.dataset/text2img-1m'
     elif name == 'text2img-10m':
         n_storage = 10_000_000
-        data_root = '.dataset/text2img-50m'
-    elif name == 'text2img-50m':
-        n_storage = 50_000_000
-        data_root = '.dataset/text2img-50m'
+        data_root = '.dataset/text2img-10m'
+    elif name == 'text2img-100m':
+        n_storage = 100_000_000
+        data_root = '.dataset/text2img-100m'
     else:
         raise NotImplementedError
 
@@ -129,41 +126,48 @@ def load_deep(name: str):
     query = read_bins(
         data_root + '/query.fbin', dtype=np.float32
     )
-    storage = read_bins(
-        data_root + '/base.fbin', dtype=np.float32
-    )
     query = torch.from_numpy(query).contiguous()
-    storage = torch.from_numpy(storage).contiguous()
+    target = read_bins(
+        data_root + '/groundtruth.ibin', dtype=np.int32
+    )
+    target = torch.from_numpy(target).contiguous()
 
-    # target
-    target = None
+    # storage
     try:
-        target = read_bins(
-            data_root + '/groundtruth.ibin', dtype=np.int32
+        storage = read_bins(
+            data_root + '/base.fbin', dtype=np.float32
         )
-        target = torch.from_numpy(target).contiguous()
+        storage = torch.from_numpy(storage).contiguous()
     except FileNotFoundError:
-        pass
+        storage = None
 
     # shrink
     if storage.size(0) > n_storage:
         storage, target = shrink_dataset(
             query, storage=storage, n_targets=n_storage
         )
-    if target is None:
-        target = search_target(
-            query=query, storage=storage
-        )
     return query, storage, target
 
 
 def load_numpy(name: str):
-    if name == 'laion-64k':
+    if name == 'wiki-64k':
+        n_storage = 65536
+        data_root = '.dataset/wiki-1m'
+    elif name == 'wiki-1m':
+        n_storage = 1_000_999
+        data_root = '.dataset/wiki-1m'
+    elif name == 'wiki-100m':
+        n_storage = 100_000_999
+        data_root = '.dataset/wiki-100m'
+    elif name == 'laion-64k':
         n_storage = 65536
         data_root = '.dataset/laion-1m'
     elif name == 'laion-1m':
-        n_storage = 1_000_000
+        n_storage = 1_000_999
         data_root = '.dataset/laion-1m'
+    elif name == 'laion-100m':
+        n_storage = 100_000_999
+        data_root = '.dataset/laion-100m'
     else:
         raise NotImplementedError
 
@@ -187,7 +191,8 @@ def load_numpy(name: str):
             np.load(child.absolute())
         )
         storage.append(embedding)
-    storage = torch.cat(storage, dim=0)
+    if len(storage) > 0:
+        storage = torch.cat(storage, dim=0)
 
     # shrink
     if storage.size(0) > n_storage:
