@@ -1,5 +1,4 @@
 import torch
-import random
 from pilot_ann import utils
 
 
@@ -15,7 +14,7 @@ def test_svd_1():
         x, max_size=n_embeddings
     )
     y_2, V_2 = utils.svd(
-        x, max_size=n_embeddings // 2
+        x, max_size=n_embeddings // 10
     )
 
     # check

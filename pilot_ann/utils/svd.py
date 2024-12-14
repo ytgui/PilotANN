@@ -1,8 +1,7 @@
 import torch
 
 
-def svd(x: torch.Tensor,
-        max_size: int = 1_000_000):
+def svd(x: torch.Tensor, max_size: int):
     assert x.dim() == 2
 
     #

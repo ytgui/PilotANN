@@ -145,7 +145,7 @@ class IndexStaged(nn.Module):
 
         # decompose
         print('svd', self.d_principle)
-        x, V = utils.svd(x, max_size=1_000_000)
+        x, V = utils.svd(x, max_size=10_000_000)
         self.register_buffer('storage', x)
         self.register_buffer(
             'VT', V.T.contiguous()
