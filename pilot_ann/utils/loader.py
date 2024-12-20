@@ -142,10 +142,11 @@ def load_deep(name: str):
         storage = None
 
     # shrink
-    if storage and storage.size(0) > n_storage:
-        storage, target = shrink_dataset(
-            query, storage=storage, n_targets=n_storage
-        )
+    if isinstance(storage, torch.Tensor):
+        if storage.size(0) > n_storage:
+            storage, target = shrink_dataset(
+                query, storage=storage, n_targets=n_storage
+            )
     return query, storage, target
 
 
@@ -195,10 +196,11 @@ def load_numpy(name: str):
         storage = torch.cat(storage, dim=0)
 
     # shrink
-    if storage and storage.size(0) > n_storage:
-        storage, target = shrink_dataset(
-            query, storage=storage, n_targets=n_storage
-        )
+    if isinstance(storage, torch.Tensor):
+        if storage.size(0) > n_storage:
+            storage, target = shrink_dataset(
+                query, storage=storage, n_targets=n_storage
+            )
     return query, storage, target
 
 

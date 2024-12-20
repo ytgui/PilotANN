@@ -303,13 +303,12 @@ void traverse_cuda(
         DISPATCH_KERNEL(32);
     } else if (ef_search <= 64) {
         DISPATCH_KERNEL(64);
-    } else if (ef_search <= 96) {
-        DISPATCH_KERNEL(96);
     } else if (ef_search <= 128) {
         DISPATCH_KERNEL(128);
-    } else if (ef_search <= 192) {
-        DISPATCH_KERNEL(192);
     } else if (ef_search <= 256) {
+        DISPATCH_KERNEL(256);
+    } else if (ef_search <= 2048) {
+        // shared memory limitation
         DISPATCH_KERNEL(256);
     } else {
         TORCH_CHECK("heapq_size not supported" && false);

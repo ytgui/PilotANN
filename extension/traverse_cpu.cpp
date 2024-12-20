@@ -241,6 +241,14 @@ void traverse_cpu(
             DISPATCH_KERNEL_1(192, i);
         } else if (ef_search <= 256) {
             DISPATCH_KERNEL_1(256, i);
+        } else if (ef_search <= 384) {
+            DISPATCH_KERNEL_1(384, i);
+        } else if (ef_search <= 512) {
+            DISPATCH_KERNEL_1(512, i);
+        } else if (ef_search <= 1024) {
+            DISPATCH_KERNEL_1(1024, i);
+        } else if (ef_search <= 2048) {
+            DISPATCH_KERNEL_1(2048, i);
         } else {
             TORCH_CHECK("ef_search not supported" && false);
         }
@@ -345,6 +353,14 @@ void traverse_refine(
             DISPATCH_KERNEL_2(192, i);
         } else if (ef_search <= 256) {
             DISPATCH_KERNEL_2(256, i);
+        } else if (ef_search <= 384) {
+            DISPATCH_KERNEL_2(384, i);
+        } else if (ef_search <= 512) {
+            DISPATCH_KERNEL_2(512, i);
+        } else if (ef_search <= 1024) {
+            DISPATCH_KERNEL_2(1024, i);
+        } else if (ef_search <= 2048) {
+            DISPATCH_KERNEL_2(2048, i);
         } else {
             TORCH_CHECK("ef_search not supported" && false);
         }
