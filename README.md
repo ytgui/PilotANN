@@ -1,6 +1,12 @@
 # PilotANN
 > Memory-bounded GPU acceleration for graph-based approximate nearest neighbor search.
 
+## Updates
+**October 17, 2025**: 
+- Fixed build issues caused by dependency conflicts:
+  - For numpy conflicts, install numpy 1.26: `pip install numpy==1.26`
+  - For "torch not found" errors during setup.py, install setuptools 75.8 (Feb 27, 2025 version): `pip install setuptools==75.8`
+
 ## Build
 ### RHEL/CentOS Setup
 ```
